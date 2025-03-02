@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Malayalam Note Editor</title>
+  <!-- Google Fonts - Manjari -->
+  <link href="https://fonts.googleapis.com/css2?family=Manjari:wght@100;400;700&display=swap" rel="stylesheet">
+  <!-- Feather Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.css" rel="stylesheet">
+  <!-- Custom CSS -->
+  <link href="styles.css" rel="stylesheet">
+</head>
+<body>
+  <div class="container">
+    <!-- Sidebar overlay (for mobile) -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+    
+    <!-- Sidebar -->
+    <aside class="sidebar hidden" id="sidebar">
+      <div class="sidebar-header">
+        <h3 class="sidebar-title">My Notes</h3>
+      </div>
+      <button class="new-note-btn" id="newNoteBtn">
+        <i data-feather="plus"></i> New Note
+      </button>
+      <div class="notes-list" id="notesList">
+        <!-- Notes will be dynamically added here -->
+      </div>
+    </aside>
+    
+    <!-- Main Content -->
+    <main class="main-content" id="mainContent">
+      <header class="header">
+        <div class="title-container">
+          <button class="menu-toggle" id="menuToggle" aria-label="Toggle Sidebar">
+            <i data-feather="menu"></i>
+          </button>
+          <input type="text" class="note-title" id="noteTitle" placeholder="Untitled Note">
+        </div>
+        <div class="controls">
+          <button class="mozhi-toggle active" id="mozhiToggle" aria-label="Toggle Malayalam Input">
+            <i data-feather="type"></i>
+            <span class="mozhi-toggle-text">മലയാളം</span>
+          </button>
+        </div>
+      </header>
+      
+      <div class="editor-container">
+        <textarea class="editor mozhi-enabled" id="editor" placeholder="Start typing..."></textarea>
+      </div>
+      
+      <footer class="status-bar">
+        <div class="status-left" id="wordCount">Words: 0 | Characters: 0</div>
+        <div class="status-right">Malayalam Input: <span id="inputStatus">Enabled</span></div>
+      </footer>
+    </main>
+    
+    <!-- Floating Action Button for mobile -->
+    <button class="fab" id="newNoteFab" aria-label="Create New Note">
+      <i data-feather="plus"></i>
+    </button>
+  </div>
+
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
+  <script src="mozhi.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // Initialize Feather icons
+      feather.replace();
+      
+      // DOM Elements
+      const sidebar = document.getElementById('sidebar');
+      const mainContent = document.getElementById('mainContent');
+      const sidebarOverlay = document.getElementById('sidebarOverlay');
+      const menuToggle = document.getElementById('menuToggle');
+      const notesList = document.getElementById('notesList');
+      const newNoteBtn = document.getElementById('newNoteBtn');
+      const newNoteFab = document.getElementById('newNoteFab');
+      const noteTitle = document.getElementById('noteTitle');
+      const editor = document.getElementById('editor');
+      const mozhiToggle = document.getElementById('mozhiToggle');
+      const wordCount = document.getElementById('wordCount');
+      const inputStatus = document.getElementById('inputStatus');
+      
+      // State
+      let notes = JSON.parse(localStorage.getItem('malayalamNotes')) || [];
+      let currentNoteId = null;
+      let mozhiEnabled = true;
+      let isMobile = window.innerWidth <= 768;
+      
+      // Create a dedicated event handler function for keypress events
+      function handleKeypress(event) {
+        return mozhiInput.handleKeypress(event);
+      }
+      
+      // Initialize the Mozhi input for the editor
+      if (typeof mozhiInput !== 'undefined') {
+        const state = {
+          cyrBuffer: "",
+          transBuffer: "",
+          position: { start: editor.selectionStart || 0, end: editor.selectionEnd || 0 },
+          reset: false
+        };
+        
+        mozhiInput.stateObjects.set(editor, state);
+        editor.addEventListener('keypress', handleKeypress);
+        editor.style.outline = 'dashed 1px green';
+        mozhiInput.boundTextInputs.set(editor, true);
+      }
+      
+      // Functions
+      function saveNotes() {
+        localStorage.setItem('malayalamNotes', JSON.stringify(notes));
+      }
+      
+      function createNewNote() {
+        const newNote = {
+          id: Date.now().toString(),
+          title: 'Untitled Note',
+          content: '',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+        
+        notes.unshift(newNote);
+        saveNotes();
+        renderNotesList();
+        loadNote(newNote.id);
+        
+        // On mobile, hide sidebar after creating note
+        if (isMobile) {
+          toggleSidebar(false);
+        }
+      }
+      
+      function updateCurrentNote() {
+        if (!currentNoteId) return;
+        
+        const noteIndex = notes.findIndex(note => note.id === currentNoteId);
+        if (noteIndex === -1) return;
+        
+        notes[noteIndex].title = noteTitle.value;
+        notes[noteIndex].content = editor.value;
+        notes[noteIndex].updatedAt = new Date().toISOString();
+        
+        saveNotes();
+        renderNotesList();
+      }
+      
+      function deleteNote(id) {
+        if (!confirm('Are you sure you want to delete this note?')) return;
+        
+        notes = notes.filter(note => note.id !== id);
+        saveNotes();
+        renderNotesList();
+        
+        if (currentNoteId === id) {
+          if (notes.length > 0) {
+            loadNote(notes[0].id);
+          } else {
+            clearEditor();
+          }
+        }
+      }
+      
+      function formatDate(dateString) {
+        const date = new Date(dateString);
+        return date.toLocaleString(undefined, { 
+          year: 'numeric', 
+          month: 'short', 
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+      }
+      
+      function renderNotesList() {
+        notesList.innerHTML = '';
+        
+        if (notes.length === 0) {
+          const emptyMessage = document.createElement('div');
+          emptyMessage.className = 'note-item';
+          emptyMessage.textContent = 'No notes yet. Create one!';
+          notesList.appendChild(emptyMessage);
+          return;
+        }
+        
+        notes.forEach(note => {
+          const noteItem = document.createElement('div');
+          noteItem.className = `note-item ${note.id === currentNoteId ? 'active' : ''}`;
+          noteItem.tabIndex = 0; // Make focusable for accessibility
+          
+          const titleContainer = document.createElement('div');
+          titleContainer.className = 'note-title-text';
+          
+          const titleSpan = document.createElement('span');
+          titleSpan.textContent = note.title || 'Untitled Note';
+          titleContainer.appendChild(titleSpan);
+          
+          // Add timestamp
+          const timestamp = document.createElement('div');
+          timestamp.style.fontSize = '0.8rem';
+          timestamp.style.color = 'var(--light-text)';
+          timestamp.textContent = formatDate(note.updatedAt);
+          titleContainer.appendChild(timestamp);
+          
+          noteItem.appendChild(titleContainer);
+          
+          // Add note click handler
+          noteItem.addEventListener('click', () => {
+            loadNote(note.id);
+            // On mobile, hide sidebar after selecting note
+            if (isMobile) {
+              toggleSidebar(false);
+            }
+          });
+          
+          // Add keyboard handling for accessibility
+          noteItem.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              loadNote(note.id);
+              // On mobile, hide sidebar after selecting note
+              if (isMobile) {
+                toggleSidebar(false);
+              }
+            }
+          });
+          
+          // Add delete button
+          const deleteBtn = document.createElement('button');
+          deleteBtn.className = 'delete-btn';
+          deleteBtn.innerHTML = '<i data-feather="trash-2"></i>';
+          deleteBtn.setAttribute('aria-label', 'Delete note');
+          deleteBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            deleteNote(note.id);
+          });
+          
+          noteItem.appendChild(deleteBtn);
+          notesList.appendChild(noteItem);
+        });
+        
+        // Re-initialize Feather icons for dynamically added elements
+        feather.replace();
+      }
+      
+      function loadNote(id) {
+        const note = notes.find(note => note.id === id);
+        if (!note) return;
+        
+        currentNoteId = id;
+        noteTitle.value = note.title;
+        editor.value = note.content;
+        updateWordCount();
+        renderNotesList(); // Update active state
+      }
+      
+      function clearEditor() {
+        currentNoteId = null;
+        noteTitle.value = '';
+        editor.value = '';
+        updateWordCount();
+      }
+      
+      function toggleSidebar(show) {
+        if (show === undefined) {
+          show = sidebar.classList.contains('hidden');
+        }
+        
+        if (show) {
+          sidebar.classList.remove('hidden');
+          document.body.classList.add('sidebar-open');
+          if (isMobile) {
+            sidebarOverlay.classList.add('visible');
+          }
+        } else {
+          sidebar.classList.add('hidden');
+          document.body.classList.remove('sidebar-open');
+          sidebarOverlay.classList.remove('visible');
+        }
+      }
+      
+      function toggleMozhi() {
+        mozhiEnabled = !mozhiEnabled;
+        
+        if (mozhiEnabled) {
+          // Enable Malayalam input
+          mozhiToggle.classList.add('active');
+          editor.classList.add('mozhi-enabled');
+          inputStatus.textContent = 'Enabled';
+          
+          if (typeof mozhiInput !== 'undefined') {
+            // Initialize state if needed
+            if (!mozhiInput.stateObjects.has(editor)) {
+              const state = {
+                cyrBuffer: "",
+                transBuffer: "",
+                position: { start: editor.selectionStart || 0, end: editor.selectionEnd || 0 },
+                reset: false
+              };
+              mozhiInput.stateObjects.set(editor, state);
+            }
+            
+            // Add our keypress handler
+            editor.addEventListener('keypress', handleKeypress);
+            editor.style.outline = 'dashed 1px green';
+            mozhiInput.boundTextInputs.set(editor, true);
+          }
+        } else {
+          // Disable Malayalam input
+          mozhiToggle.classList.remove('active');
+          editor.classList.remove('mozhi-enabled');
+          inputStatus.textContent = 'Disabled';
+          
+          if (typeof mozhiInput !== 'undefined') {
+            // Remove our keypress handler
+            editor.removeEventListener('keypress', handleKeypress);
+            editor.style.outline = null;
+            mozhiInput.boundTextInputs.delete(editor);
+          }
+        }
+      }
+      
+      function updateWordCount() {
+        const text = editor.value;
+        const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+        const chars = text.length;
+        wordCount.textContent = `Words: ${words} | Characters: ${chars}`;
+      }
+      
+      function checkScreenSize() {
+        isMobile = window.innerWidth <= 768;
+        
+        // Update layout classes based on screen size
+        if (!isMobile && !sidebar.classList.contains('hidden')) {
+          document.body.classList.add('sidebar-open');
+        }
+      }
+      
+      // Event Listeners
+      menuToggle.addEventListener('click', () => toggleSidebar());
+      sidebarOverlay.addEventListener('click', () => toggleSidebar(false));
+      
+      newNoteBtn.addEventListener('click', createNewNote);
+      newNoteFab.addEventListener('click', () => {
+        if (isMobile && sidebar.classList.contains('hidden')) {
+          toggleSidebar(true);
+        } else {
+          createNewNote();
+        }
+      });
+      
+      mozhiToggle.addEventListener('click', toggleMozhi);
+      
+      noteTitle.addEventListener('input', updateCurrentNote);
+      editor.addEventListener('input', () => {
+        updateCurrentNote();
+        updateWordCount();
+      });
+      
+      // Detect touch device and add a class to the body
+      if ('ontouchstart' in window || navigator.maxTouchPoints) {
+        document.body.classList.add('touch-device');
+      }
+      
+      // Handle window resize
+      window.addEventListener('resize', checkScreenSize);
+      
+      // Initialize App
+      checkScreenSize();
+      
+      // On desktop, show sidebar by default; on mobile hide it
+      if (!isMobile) {
+        toggleSidebar(true);
+      }
+      
+      renderNotesList();
+      if (notes.length > 0) {
+        loadNote(notes[0].id);
+      } else {
+        createNewNote();
+      }
+      
+      // Handle keyboard shortcuts
+      document.addEventListener('keydown', (e) => {
+        // Ctrl+N (or Cmd+N on Mac) to create new note
+        if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+          e.preventDefault();
+          createNewNote();
+        }
+        
+        // Esc key to close sidebar on mobile
+        if (e.key === 'Escape' && isMobile && !sidebar.classList.contains('hidden')) {
+          toggleSidebar(false);
+        }
+      });
+      
+      // Set focus to editor on page load
+      setTimeout(() => {
+        editor.focus();
+      }, 100);
+    });
+  </script>
+</body>
+</html>
