@@ -6,8 +6,6 @@
   <title>Malayalam Note Editor</title>
   <!-- Google Fonts - Manjari -->
   <link href="https://fonts.googleapis.com/css2?family=Manjari:wght@100;400;700&display=swap" rel="stylesheet">
-  <!-- Feather Icons -->
-  <link href="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.css" rel="stylesheet">
   <!-- Custom CSS -->
   <link href="styles.css" rel="stylesheet">
 </head>
@@ -22,7 +20,8 @@
         <h3 class="sidebar-title">My Notes</h3>
       </div>
       <button class="new-note-btn" id="newNoteBtn">
-        <i data-feather="plus"></i> New Note
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-plus"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg> 
+        New Note
       </button>
       <div class="notes-list" id="notesList">
         <!-- Notes will be dynamically added here -->
@@ -34,13 +33,13 @@
       <header class="header">
         <div class="title-container">
           <button class="menu-toggle" id="menuToggle" aria-label="Toggle Sidebar">
-            <i data-feather="menu"></i>
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-menu"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
           </button>
           <input type="text" class="note-title" id="noteTitle" placeholder="Untitled Note">
         </div>
         <div class="controls">
           <button class="mozhi-toggle active" id="mozhiToggle" aria-label="Toggle Malayalam Input">
-            <i data-feather="type"></i>
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-type"><polyline points="4 7 4 4 20 4 20 7"></polyline><line x1="9" y1="20" x2="15" y2="20"></line><line x1="12" y1="4" x2="12" y2="20"></line></svg>
             <span class="mozhi-toggle-text">മലയാളം</span>
           </button>
         </div>
@@ -58,18 +57,14 @@
     
     <!-- Floating Action Button for mobile -->
     <button class="fab" id="newNoteFab" aria-label="Create New Note">
-      <i data-feather="plus"></i>
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-plus"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
     </button>
   </div>
 
   <!-- Scripts -->
-  <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
   <script src="mozhi.js"></script>
   <script>
     document.addEventListener('DOMContentLoaded', function() {
-      // Initialize Feather icons
-      feather.replace();
-      
       // DOM Elements
       const sidebar = document.getElementById('sidebar');
       const mainContent = document.getElementById('mainContent');
@@ -229,10 +224,10 @@
             }
           });
           
-          // Add delete button
+          // Add delete button with inline SVG
           const deleteBtn = document.createElement('button');
           deleteBtn.className = 'delete-btn';
-          deleteBtn.innerHTML = '<i data-feather="trash-2"></i>';
+          deleteBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-trash-2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>';
           deleteBtn.setAttribute('aria-label', 'Delete note');
           deleteBtn.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -242,9 +237,6 @@
           noteItem.appendChild(deleteBtn);
           notesList.appendChild(noteItem);
         });
-        
-        // Re-initialize Feather icons for dynamically added elements
-        feather.replace();
       }
       
       function loadNote(id) {
